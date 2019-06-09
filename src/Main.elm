@@ -42,6 +42,7 @@ type SceneId
     | Storefronts
     | Spire
     | ToolsForThought
+    | Library
 
 
 type alias Scene =
@@ -69,7 +70,7 @@ scenes model =
       , onClick = Nothing
       }
     , { id = PhoneBooth
-      , navigationOptions = [ ( East, SittingRoom ) ]
+      , navigationOptions = [ ( East, SittingRoom ) ] ++ maybeArrow ( West, Library ) (List.any (\secret -> secret == CategoryTheory) model.knowledge)
       , assetPath = Just "PhoneBooth"
       , onClick = Just (AcquireKeyItem GateKey)
       }
@@ -87,6 +88,11 @@ scenes model =
       , navigationOptions = [ ( East, Storefronts ) ]
       , assetPath = Just "ToolsForThought"
       , onClick = Just (AcquireKnowledge CategoryTheory)
+      }
+    , { id = Library
+      , navigationOptions = [ ( East, PhoneBooth ) ]
+      , assetPath = Just "Library"
+      , onClick = Nothing
       }
     ]
 
@@ -390,7 +396,7 @@ view model =
                 Just dialogHtml ->
                     dialogHtml
     in
-    div [ classList [ ( "grayscale", noGlassesEquipped model ) ] ]
+    div [ classList [ ( "grayscale", not (List.any (\secret -> secret == CategoryTheory) model.knowledge) ) ] ]
         [ renderScene maybeScene
         , renderGui model
         , dialog
