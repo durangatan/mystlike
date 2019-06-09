@@ -1,9 +1,11 @@
 module Main exposing (Arrow, ArrowDirection(..), Item, ItemName(..), Model, Msg(..), Scene, SceneId(..), init, main, update, view)
 
 import Browser
+import Browser.Events exposing (onKeyDown)
 import Html exposing (Html, aside, button, div, h1, h2, img, li, text, ul)
 import Html.Attributes exposing (class, classList, src, style)
 import Html.Events exposing (onClick)
+import Json.Decode as Decode
 
 
 
@@ -237,6 +239,7 @@ type Msg
     | AcquireKnowledge Secret
     | ChangeEquipStatus ItemName
     | HideDialog
+    | KeyPressed KeyValue
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -302,6 +305,7 @@ update msg model =
 
         HideDialog ->
             ( { model | openDialog = Nothing }, Cmd.none )
+
         ChangeEquipStatus equipmentName ->
             let
                 currentlyEquipped =
@@ -312,6 +316,60 @@ update msg model =
 
             else
                 ( { model | equipment = model.equipment ++ getItemByName equipmentName allItems }, Cmd.none )
+
+        KeyPressed value ->
+            let
+                maybeScene =
+                    getSceneById model.activeSceneId model
+            in
+            case value of
+                Control "ArrowUp" ->
+                    case getArrow ( North, maybeScene ) of
+                        Just arrow ->
+                            ( { model | activeSceneId = Tuple.second arrow }, Cmd.none )
+
+                        Nothing ->
+                            ( model, Cmd.none )
+
+                Control "ArrowDown" ->
+                    case getArrow ( South, maybeScene ) of
+                        Just arrow ->
+                            ( { model | activeSceneId = Tuple.second arrow }, Cmd.none )
+
+                        Nothing ->
+                            ( model, Cmd.none )
+
+                Control "ArrowLeft" ->
+                    case getArrow ( West, maybeScene ) of
+                        Just arrow ->
+                            ( { model | activeSceneId = Tuple.second arrow }, Cmd.none )
+
+                        Nothing ->
+                            ( model, Cmd.none )
+
+                Control "ArrowRight" ->
+                    case getArrow ( East, maybeScene ) of
+                        Just arrow ->
+                            ( { model | activeSceneId = Tuple.second arrow }, Cmd.none )
+
+                        Nothing ->
+                            ( model, Cmd.none )
+
+                Control _ ->
+                    ( model, Cmd.none )
+
+                Character _ ->
+                    ( model, Cmd.none )
+
+
+getArrow : ( ArrowDirection, Maybe Scene ) -> Maybe Arrow
+getArrow ( direction, maybeScene ) =
+    case maybeScene of
+        Just scene ->
+            List.head (List.filter (\arrow -> Tuple.first arrow == direction) scene.navigationOptions)
+
+        Nothing ->
+            Nothing
 
 
 
@@ -478,5 +536,35 @@ main =
         { view = view
         , init = \_ -> init
         , update = update
-        , subscriptions = always Sub.none
+        , subscriptions = subscriptions
         }
+
+
+keyDecoder =
+    Decode.map toKeyValue (Decode.field "key" Decode.string)
+
+
+toKeyValue : String -> KeyValue
+toKeyValue string =
+    let
+        _ =
+            Debug.log string
+    in
+    case String.uncons string of
+        Just ( char, "" ) ->
+            Character char
+
+        _ ->
+            Control string
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.batch
+        [ onKeyDown (Decode.map KeyPressed keyDecoder)
+        ]
+
+
+type KeyValue
+    = Character Char
+    | Control String
